@@ -1,92 +1,50 @@
 # SMSCompress
 
+Toto je dokumentace popisující návrh a implementaci projektu do předmětu „Principy programovacích jazyků a OOP“, který dle parametrů příkazového řádku provádí konverzi vstupního textu do normalizované formy bez diakritiky, dále používá expanzivní a redukční pravidla pro nahrazení podřetězců dle pravidel určených slovníkem a převádí text do tzv. Camel notace.
+Parametry programu a jejich význam je dostupný přímo v programu zadáním parametru --help, nebo spuštěním programu bez parametrů.
 
+## Obecné informace o implementaci
 
-## Getting started
+Pro uložení informací, které je potřeba mít dostupné v celém programu jsou použity globální proměnné, které obsahují informace o názvech vstupních a výstupních souborů, o pravidlech pro expanzi a redukci a také o typech parametrů, které byly zadány na příkazové řádce.
+Pro implementaci je použit mód strict jazyka Perl, dále kódování pomocí use utf8 a use locale. Program používá jediný externí modul IO::File pro načtení a ukládání souborů s kódováním UTF-8.
+Pro uložení načteného řetězce a jeho následné konverze je použito globální pole $processed.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## Odstranění diakritiky
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+Jazyk Perl je velmi dobře vybaven pro práci s textem, a proto je kód pro nahrazení znaků s diakritikou jejich ekvivalentem bez diakritiky velmi jednoduchý.
 
 ```
-cd existing_repo
-git remote add origin https://git.knapovsky.com/knapovsky/smscompress.git
-git branch -M main
-git push -uf origin main
+$string =~ tr/ĚŠČŘŽĎŤŇÁÉÍÓÚŮÝěščřžďťňáéíóúůý/ESCRZDTNAEIOUUYescrzdtnaeiouuy/;
 ```
 
-## Integrate with your tools
+Informace o tom, zda byla provedena konverze alespoň jednoho znaku je navracena zpět z funkce, což je vhodné pro určení typu vstupního řetězce (s diakritikou, bez diakritiky).
 
-- [ ] [Set up project integrations](https://git.knapovsky.com/knapovsky/smscompress/-/settings/integrations)
+## Převod do Camel notace
 
-## Collaborate with your team
+Zadání projektu specifikovalo 3 typy převodu do Camel notace: klasický převod, převod slov psaných malým písmem a převod všech slov kromě slov psaných velkým písmem.
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Automatically merge when pipeline succeeds](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+## Algoritmus převodu a jeho implementace
 
-## Test and Deploy
+Nejprve převedeme vstupní řetězec na malá písmena a poté ho rozdělíme na znaky, které následně procházíme.
 
-Use the built-in continuous integration in GitLab.
+```
+my @chars = split "", $line;
+```
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+Procházíme tedy řetězcem po znacích a rozpoznáváme jejich typ. Dále musíme vědět, zda se nacházíme uvnitř slova, nebo zda je načtený znak jeho počátkem – k tomu slouží proměnná my $inside_word.
+Pokud je zpracovávaným znakem písmeno a zároveň se nacházíme na začátku slova, převedeme písmeno na písmeno velké, jelikož jsme se tak dostali dovnitř slova, nastavíme příznak $inside_word a převedený znak přidáme do globálního pole $processed. Pokud dále načítáme znaky, zůstává příznak $inside_word nastavený a znaky bez konverze přidáváme do pole $processed. Při načtení jakéhokoliv jiného znaku než je písmeno vypneme příznak $inside_word a pokud se nejedná o mezeru, přídáme ho opět do pole $processed. Takto zpracováváme řetězec až do načtení jeho posledního znaku.
 
-***
+### Převod slov složených pouze z malých znaků a slov, která nejsou zapsána velkými písmeny do Camel notace
 
-# Editing this README
+Pro tyto konverze je využito předešlého algoritmu pro převod řetězce do Camel notace, avšak pokud narazíme na slovo, pak ho po znacích ukládáme do proměnné $buffer a při přečtení jiného než písmenného znaku zkontrolujeme, zda slovo v proměnné $buffer je složeno pouze z malých, nebo velkých písmen a na základě výsledku kontroly převádíme slovo do Camel notace, nebo ho ponecháváme v současné podobě a přidáváme ho do globální proměnné $processed.
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
+## Expanze a redukce pomocí slovníkových pravidel
 
-## Suggestions for a good README
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+Pro použití pravidel ze slovníku bylo nutné nejprve slovník zpracovat do podoby, s níž je možno pracovat v rámci programu.
+Jednotlivé řádky souboru XML jsou načítány a rozpoznávány pomocí regulárních výrazů. Korektní slovník pravidel musí obsahovat párový tag <sms-abbreviation-dictionary>, jehož přítomnost je testována a pokud není nalezen, je slovník nesprávně definovaný, a tudíž je vytištěna příslušná chybová hláška. Při načtení párového tagu <rule>, který může obsahovat další atributy casesensitive a expansive (to zda se jedná o expanzivní pravidlo, nebo redukční) vyhledáváme jeho elementy <abbrev> a <text>. Tyto elementy musí být přitomny oba, avšak nemusí být přítomny přesně v uvedeném pořadí. Při jejich nalezení uchováváme jejich položky do hashovacího pole %rule_hash, na nějž při načtení ukončovacího tagu pravidla </rule> uchováváme ukazatel do daného seznamu pravidel, který je určen podle toho, zda se jedná o expanzivní, či redukční pravidlo a dále zda se jedná o pravidlo typu case-sensitive. Pokud nejsou oba elementy pravidla, nebo ukončovací tag nalezeny, pak se jedná o nesprávně definovaný slovník, je vytištěna chybová hláška a program je ukončen s odpovídající návratovou hodnotou.
+Celkem tedy máme 4 pole s ukazateli na hashovací pole obsahující pravidla, která jsou následně procházena a uplatňována dokud v řetězci nacházíme podřetězce, na něž se pravidla mají aplikovat.
 
-## Name
-Choose a self-explaining name for your project.
+## Určení počtu SMS nutného pro uložení řetězce
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+Jak již bylo popsáno výše, při převodu vstupního řetězce na řetězec bez diakritiky je využito funkce, která navrací příznak, zda vstupní řetězec obsahoval diakritiku, či nikoliv. Tohoto je využito při výpočtu počtu SMS na které je potřeba výstupní řetězec rozdělit. Pokud zpráva obsahuje interpunkci a je delší než 70 znaků, pak délku zprávy vydělíme číslem 67 (počet znaků, který je schopna uložit jedna SMS při zprávě skládající se z více SMS zpráv) , přičteme 1 a odsekneme desetinnou část výsledku, jelikož určujeme minimální nutný počet SMS, který je celočíselný. Obdobně je prováděn výpočet pro řetězec bez diakritiky (samotná SMS bez diakritiky je schopna obsáhnout 160 znaků a delší zpráva z více SMS 153 znaků).
+Pozn.: Pro další informace je zdrojový kód programu podrobně komentovaný.
